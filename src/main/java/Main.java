@@ -1,12 +1,8 @@
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.Arrays;
+import java.io.PrintWriter;
 import java.util.List;
 import java.util.Properties;
-import com.google.gson.*;
 
 
 public class Main {
@@ -21,43 +17,19 @@ public class Main {
             throw new RuntimeException(e);
         }
 
-        URI apiURI = URI.create("https://imdb-api.com/en/API/Top250Movies/" + properties.getProperty("api-key"));
+        String json = new ImDbApiClient(properties.getProperty("api-key")).getBody();
 
-        String json = getJson(apiURI);
+        List<Movie> movies = new ImDbMoviesJsonParser(json).parse();
 
-        Gson gson = new Gson();
-
-        for (String JSONMovie : getJSONMoviesList(json)) {
-            Movie movie = gson.fromJson(JSONMovie, Movie.class);
-
-            System.out.println(movie.getTitle());
-            System.out.println(movie.getImage());
-            System.out.println(movie.getImDbRating());
-            System.out.println(movie.getYear() + "\n");
-        }
-
-    }
-
-    public static String getJson(URI uri){
-
-        HttpClient client = HttpClient.newHttpClient();
-
-        HttpRequest request = HttpRequest.newBuilder().uri(uri).build();
-
-        HttpResponse<String> response;
+        // Generate HTML
+        PrintWriter writer;
         try {
-            response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (Exception e) {
+            writer = new PrintWriter("content.html");
+        } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
+        new HTMLGenerator(writer).generate(movies);
 
-        return response.body();
+        writer.close();
     }
-
-    public static List<String> getJSONMoviesList(String json){
-        int beginIndex = json.indexOf("[") + 1;
-        int endIndex = json.indexOf("]");
-        return Arrays.asList(json.substring(beginIndex, endIndex).split("(?<=}),"));
-    }
-
 }
